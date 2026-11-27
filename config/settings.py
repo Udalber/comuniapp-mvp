@@ -167,8 +167,14 @@ AUTHENTICATION_BACKENDS = [
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "no-reply@comuniapp.local"
 
-# Costo fijo de envío en COP (subtotal carrito + SHIPPING_COST = total pedido)
-SHIPPING_COST = 8_000
+# Costo de envío en COP (subtotal carrito + SHIPPING_COST = total pedido).
+# Se configura con la variable de entorno SHIPPING_COST; por defecto 8000.
+try:
+    SHIPPING_COST = int(os.environ.get("SHIPPING_COST", "8000"))
+except ValueError as exc:
+    raise ImproperlyConfigured("SHIPPING_COST debe ser un número entero de pesos.") from exc
+if SHIPPING_COST < 0:
+    raise ImproperlyConfigured("SHIPPING_COST no puede ser negativo.")
 
 if not DEBUG:
     LOGGING = {
