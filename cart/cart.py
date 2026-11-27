@@ -3,6 +3,7 @@ from decimal import Decimal
 from catalog.models import Book
 
 CART_SESSION_KEY = "cart"
+MAX_QTY_PER_BOOK = 10
 
 
 class Cart:
@@ -20,10 +21,9 @@ class Cart:
         book_id = str(book.pk)
         if book_id in self.cart and not override:
             return False
-        if override:
-            self.cart[book_id] = qty
-        else:
-            self.cart[book_id] = self.cart.get(book_id, 0) + qty
+        if not override:
+            qty += self.cart.get(book_id, 0)
+        self.cart[book_id] = min(qty, MAX_QTY_PER_BOOK)
         self._save()
         return True
 
@@ -39,7 +39,7 @@ class Cart:
         if qty <= 0:
             self.remove(book)
         elif book_id in self.cart:
-            self.cart[book_id] = qty
+            self.cart[book_id] = min(qty, MAX_QTY_PER_BOOK)
             self._save()
 
     def clear(self):

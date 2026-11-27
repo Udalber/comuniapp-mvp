@@ -3,7 +3,8 @@ from decimal import Decimal
 from django.test import TestCase
 from django.urls import reverse
 
-from cart.cart import CART_SESSION_KEY
+from cart.cart import CART_SESSION_KEY, MAX_QTY_PER_BOOK
+from cart.views import LIMIT_QTY_MESSAGE
 from catalog.models import Book, Category
 
 
@@ -46,3 +47,19 @@ class CartUpdateViewTests(TestCase):
     def test_valid_quantity_updates_item(self):
         self._update("3")
         self.assertEqual(self._cart_quantity(), 3)
+
+    def test_update_over_limit_caps_and_warns(self):
+        response = self._update(str(MAX_QTY_PER_BOOK + 1), follow=True)
+        self.assertEqual(self._cart_quantity(), MAX_QTY_PER_BOOK)
+        self.assertContains(response, LIMIT_QTY_MESSAGE)
+
+    def test_update_over_limit_ajax_reports_limited(self):
+        response = self._update("99", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        data = response.json()
+        self.assertTrue(data["limited"])
+        self.assertEqual(data["quantity"], MAX_QTY_PER_BOOK)
+
+    def test_add_over_limit_caps_quantity(self):
+        self.client.post(reverse("cart:remove", args=[self.book.slug]))
+        self.client.post(reverse("cart:add", args=[self.book.slug]), {"quantity": 25})
+        self.assertEqual(self._cart_quantity(), MAX_QTY_PER_BOOK)
