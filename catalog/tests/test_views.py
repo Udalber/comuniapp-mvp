@@ -58,6 +58,41 @@ class CatalogFilterTests(TestCase):
         ids = self._filtered_ids({"price_min": "20000", "price_max": "50000"})
         self.assertEqual(ids, {self.garcia.pk})
 
+    def test_invalid_prices_are_ignored(self):
+        all_ids = self._filtered_ids({})
+        for value in ("abc", "NaN", "Infinity", "-Infinity", "-5000"):
+            with self.subTest(value=value):
+                self.assertEqual(self._filtered_ids({"price_min": value}), all_ids)
+                self.assertEqual(self._filtered_ids({"price_max": value}), all_ids)
+
+    def test_price_range_is_swapped_when_min_greater_than_max(self):
+        ids = self._filtered_ids({"price_min": "50000", "price_max": "20000"})
+        self.assertEqual(ids, {self.garcia.pk})
+
+    def test_index_with_invalid_price_does_not_fail(self):
+        response = self.client.get("/catalog/", {"price_min": "NaN", "price_max": "Infinity"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Cien años de soledad")
+
+    def test_sort_by_price_desc(self):
+        request = self.factory.get("/catalog/", {"sort": "price_desc"})
+        qs, _ = _filter_books(request)
+        prices = list(qs.values_list("price", flat=True))
+        self.assertEqual(prices, sorted(prices, reverse=True))
+
+    def test_sort_by_price_desc_keeps_filters(self):
+        request = self.factory.get("/catalog/", {"sort": "price_desc", "category": "ficcion"})
+        qs, _ = _filter_books(request)
+        self.assertEqual(
+            list(qs.values_list("slug", flat=True)), ["cien-anos", "novela-barata"]
+        )
+
+    def test_index_shows_price_desc_option_selected(self):
+        response = self.client.get("/catalog/", {"sort": "price_desc"})
+        self.assertContains(
+            response, '<option value="price_desc" selected>Precio (mayor a menor)</option>', html=True
+        )
+
     def test_filter_by_condition(self):
         ids = self._filtered_ids({"condition": "aceptable"})
         self.assertEqual(len(ids), 1)

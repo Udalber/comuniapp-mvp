@@ -139,6 +139,8 @@
     }
     if (increaseBtn) {
       increaseBtn.value = String(qty + 1);
+      var max = parseInt(increaseBtn.getAttribute("data-qty-max"), 10);
+      increaseBtn.disabled = !isNaN(max) && qty >= max;
     }
   }
 
@@ -202,7 +204,7 @@
 
       postForm(form.action, form, 1).then(function (data) {
         if (data.message) {
-          var tag = data.message.indexOf("Ya en") === 0 ? "warning" : "success";
+          var tag = data.limited || data.message.indexOf("Ya en") === 0 ? "warning" : "success";
           showToast(data.message, tag);
         }
         updateCartBadge(data.count);
@@ -244,8 +246,11 @@
           if (!data.in_cart) {
             removeCartRow(row);
           } else {
-            updateQtyDisplay(row, qty);
+            updateQtyDisplay(row, data.quantity !== undefined ? data.quantity : qty);
             updateLineSubtotal(row, data.line_subtotal_formatted);
+          }
+          if (data.limited && data.message) {
+            showToast(data.message, "warning");
           }
         }).catch(function () {
           form.submit();
