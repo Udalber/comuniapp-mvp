@@ -7,7 +7,7 @@ MVP web académico de la **Universidad Iberoamericana** (Análisis y Diseño de 
 ## Stack
 
 - Django (última versión estable)
-- Python 3.11+
+- Python 3.13
 - HTML, CSS y JavaScript vanilla (sin React, Vue, Tailwind ni Bootstrap)
 - SQLite (desarrollo) / PostgreSQL (producción)
 - WhiteNoise para archivos estáticos en producción
@@ -70,6 +70,7 @@ Abrir http://127.0.0.1:8000/
 | `DEBUG` | Modo depuración | `True` |
 | `ALLOWED_HOSTS` | Hosts permitidos (coma-separados) | `localhost,127.0.0.1` |
 | `DATABASE_URL` | URL PostgreSQL (dj-database-url) | SQLite local |
+| `SHIPPING_COST` | Costo de envío por pedido en pesos (entero ≥ 0) | `8000` |
 
 ## Comandos útiles
 

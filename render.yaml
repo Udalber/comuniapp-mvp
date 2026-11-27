@@ -16,7 +16,9 @@ services:
     startCommand: bash start.sh
     envVars:
       - key: PYTHON_VERSION
-        value: 3.12.8
+        value: 3.13.5
+      - key: SHIPPING_COST
+        value: "8000"
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
