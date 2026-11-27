@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.contrib.sessions.backends.db import SessionStore
 from django.test import RequestFactory, TestCase
 
-from cart.cart import CART_SESSION_KEY, Cart
+from cart.cart import CART_SESSION_KEY, MAX_QTY_PER_BOOK, Cart
 from cart.context_processors import cart as cart_context_processor
 from catalog.models import Book, Category
 
@@ -42,6 +42,15 @@ class CartTests(TestCase):
         self.cart.update(self.book, 0)
         self.assertNotIn(self.book, self.cart)
         self.assertEqual(len(self.cart), 0)
+
+    def test_add_caps_quantity_at_limit(self):
+        self.cart.add(self.book, qty=MAX_QTY_PER_BOOK + 5)
+        self.assertEqual(self.cart.get_quantity(self.book), MAX_QTY_PER_BOOK)
+
+    def test_update_caps_quantity_at_limit(self):
+        self.cart.add(self.book)
+        self.cart.update(self.book, 50)
+        self.assertEqual(self.cart.get_quantity(self.book), MAX_QTY_PER_BOOK)
 
     def test_remove_deletes_item(self):
         self.cart.add(self.book)
