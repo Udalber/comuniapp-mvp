@@ -21,7 +21,11 @@ def _is_ajax(request):
     return "application/json" in accept
 
 
-def _parse_quantity(value, default=1):
+INVALID_QTY_MESSAGE = "Cantidad no válida."
+
+
+def _parse_quantity(value, default=None):
+    """Convierte la cantidad enviada a entero; retorna `default` si no es un entero."""
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -93,7 +97,22 @@ def add(request, slug):
 def update(request, slug):
     book = get_object_or_404(Book, slug=slug)
     cart = _get_cart(request)
-    qty = _parse_quantity(request.POST.get("quantity"), default=0)
+    qty = _parse_quantity(request.POST.get("quantity"))
+
+    if qty is None:
+        if _is_ajax(request):
+            return JsonResponse(
+                _json_payload(
+                    cart,
+                    message=INVALID_QTY_MESSAGE,
+                    line_subtotal=cart.line_subtotal(book),
+                    in_cart=cart.contains(book),
+                ),
+                status=400,
+            )
+        messages.error(request, INVALID_QTY_MESSAGE)
+        return redirect("cart:detail")
+
     cart.update(book, qty)
 
     if _is_ajax(request):
