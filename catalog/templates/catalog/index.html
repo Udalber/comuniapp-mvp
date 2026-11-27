@@ -134,6 +134,7 @@
               <select class="input catalog__select" id="catalog-sort" name="sort">
                 <option value="relevance" {% if sort == "relevance" %}selected{% endif %}>Relevancia</option>
                 <option value="price" {% if sort == "price" %}selected{% endif %}>Precio (menor a mayor)</option>
+                <option value="price_desc" {% if sort == "price_desc" %}selected{% endif %}>Precio (mayor a menor)</option>
                 <option value="date" {% if sort == "date" %}selected{% endif %}>Fecha (más recientes)</option>
               </select>
             </fieldset>

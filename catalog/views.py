@@ -52,6 +52,8 @@ def _filter_books(request):
     sort = request.GET.get("sort", "")
     if sort == "price":
         qs = qs.order_by("price")
+    elif sort == "price_desc":
+        qs = qs.order_by("-price")
     elif sort == "date":
         qs = qs.order_by("-created_at")
     elif sort == "relevance" and q:
