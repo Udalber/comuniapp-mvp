@@ -104,7 +104,9 @@
                   name="quantity"
                   value="{{ item.quantity|add:'1' }}"
                   data-qty-increase
+                  data-qty-max="{{ max_qty_per_book }}"
                   aria-label="Aumentar cantidad"
+                  {% if item.quantity >= max_qty_per_book %}disabled{% endif %}
                 >+</button>
               </div>
             </form>
