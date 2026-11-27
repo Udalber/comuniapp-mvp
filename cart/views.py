@@ -7,7 +7,7 @@ from django.views.decorators.http import require_POST
 
 from catalog.models import Book
 
-from .cart import Cart
+from .cart import MAX_QTY_PER_BOOK, Cart
 
 
 def _get_cart(request):
@@ -21,7 +21,12 @@ def _is_ajax(request):
     return "application/json" in accept
 
 
-def _parse_quantity(value, default=1):
+INVALID_QTY_MESSAGE = "Cantidad no válida."
+LIMIT_QTY_MESSAGE = f"Puedes llevar máximo {MAX_QTY_PER_BOOK} unidades de cada libro."
+
+
+def _parse_quantity(value, default=None):
+    """Convierte la cantidad enviada a entero; retorna `default` si no es un entero."""
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -36,13 +41,17 @@ def _format_cop(amount):
     return f"${quantized:,.0f}"
 
 
-def _json_payload(cart, *, message="", line_subtotal=None, in_cart=None):
+def _json_payload(cart, *, message="", line_subtotal=None, in_cart=None, quantity=None, limited=False):
     payload = {
         "count": len(cart),
         "total": str(cart.total_price),
         "total_formatted": _format_cop(cart.total_price),
         "message": message,
+        "limited": limited,
+        "max_quantity": MAX_QTY_PER_BOOK,
     }
+    if quantity is not None:
+        payload["quantity"] = quantity
     if line_subtotal is not None:
         payload["line_subtotal"] = str(line_subtotal)
         payload["line_subtotal_formatted"] = _format_cop(line_subtotal)
@@ -63,14 +72,18 @@ def add(request, slug):
     book = get_object_or_404(Book, slug=slug)
     cart = _get_cart(request)
     qty = max(1, _parse_quantity(request.POST.get("quantity"), default=1))
+    limited = False
 
     if cart.contains(book):
         message = "Ya en el carrito"
         added = False
     else:
         cart.add(book, qty=qty)
-        message = f"«{book.title}» se añadió al carrito."
         added = True
+        limited = qty > MAX_QTY_PER_BOOK
+        message = f"«{book.title}» se añadió al carrito."
+        if limited:
+            message = f"{message} {LIMIT_QTY_MESSAGE}"
 
     if _is_ajax(request):
         return JsonResponse(
@@ -79,10 +92,12 @@ def add(request, slug):
                 message=message,
                 line_subtotal=cart.line_subtotal(book),
                 in_cart=True,
+                quantity=cart.get_quantity(book),
+                limited=limited,
             )
         )
 
-    if added:
+    if added and not limited:
         messages.success(request, message)
     else:
         messages.warning(request, message)
@@ -93,13 +108,29 @@ def add(request, slug):
 def update(request, slug):
     book = get_object_or_404(Book, slug=slug)
     cart = _get_cart(request)
-    qty = _parse_quantity(request.POST.get("quantity"), default=0)
+    qty = _parse_quantity(request.POST.get("quantity"))
+
+    if qty is None:
+        if _is_ajax(request):
+            return JsonResponse(
+                _json_payload(
+                    cart,
+                    message=INVALID_QTY_MESSAGE,
+                    line_subtotal=cart.line_subtotal(book),
+                    in_cart=cart.contains(book),
+                ),
+                status=400,
+            )
+        messages.error(request, INVALID_QTY_MESSAGE)
+        return redirect("cart:detail")
+
     cart.update(book, qty)
+    limited = qty > MAX_QTY_PER_BOOK and cart.contains(book)
 
     if _is_ajax(request):
         if cart.contains(book):
             line_subtotal = cart.line_subtotal(book)
-            message = "Cantidad actualizada."
+            message = LIMIT_QTY_MESSAGE if limited else "Cantidad actualizada."
         else:
             line_subtotal = Decimal("0")
             message = "Ítem eliminado del carrito."
@@ -109,10 +140,14 @@ def update(request, slug):
                 message=message,
                 line_subtotal=line_subtotal,
                 in_cart=cart.contains(book),
+                quantity=cart.get_quantity(book),
+                limited=limited,
             )
         )
 
-    if cart.contains(book):
+    if limited:
+        messages.warning(request, LIMIT_QTY_MESSAGE)
+    elif cart.contains(book):
         messages.success(request, "Cantidad actualizada.")
     else:
         messages.success(request, f"«{book.title}» se eliminó del carrito.")
@@ -147,5 +182,6 @@ def detail(request):
         "cart_items": cart_items,
         "cart_total": cart.total_price,
         "cart_is_empty": len(cart_items) == 0,
+        "max_qty_per_book": MAX_QTY_PER_BOOK,
     }
     return render(request, "cart/detail.html", context)
