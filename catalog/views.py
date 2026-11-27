@@ -10,13 +10,17 @@ from .models import Book, Category
 BOOKS_PER_PAGE = 12
 
 
-def _parse_decimal(value):
+def _parse_price(value):
+    """Precio de filtro válido (finito y >= 0) o None si debe ignorarse."""
     if not value:
         return None
     try:
-        return Decimal(value)
+        price = Decimal(value.strip())
     except (InvalidOperation, ValueError):
         return None
+    if not price.is_finite() or price < 0:
+        return None
+    return price
 
 
 def _filter_books(request):
@@ -36,8 +40,10 @@ def _filter_books(request):
         valid = {c for c, _ in Book.Condition.choices}
         qs = qs.filter(condition__in=[c for c in conditions if c in valid])
 
-    price_min = _parse_decimal(request.GET.get("price_min"))
-    price_max = _parse_decimal(request.GET.get("price_max"))
+    price_min = _parse_price(request.GET.get("price_min"))
+    price_max = _parse_price(request.GET.get("price_max"))
+    if price_min is not None and price_max is not None and price_min > price_max:
+        price_min, price_max = price_max, price_min
     if price_min is not None:
         qs = qs.filter(price__gte=price_min)
     if price_max is not None:
